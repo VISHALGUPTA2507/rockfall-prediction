@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Rockfall Prediction Dashboard</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #121212;
+      color: white;
+    }
+    header {
+      background: #d32f2f;
+      padding: 15px;
+      text-align: center;
+      font-size: 1.5em;
+      position: relative;
+    }
+    /* Notification bell */
+    .notification-icon {
+      position: absolute;
+      right: 20px;
+      top: 15px;
+      cursor: pointer;
+      font-size: 1.5em;
+    }
+    .notification-icon span {
+      background: yellow;
+      color: red;
+      font-size: 0.8em;
+      padding: 2px 6px;
+      border-radius: 50%;
+      position: absolute;
+      top: -10px;
+      right: -10px;
+    }
+    .top-panel {
+      display: flex;
+      justify-content: space-around;
+      padding: 20px;
+    }
+    .widget {
+      background: #1e1e1e;
+      padding: 15px;
+      border-radius: 10px;
+      width: 25%;
+      text-align: center;
+      box-shadow: 0 0 10px #ff4444;
+    }
+    .container-btn {
+      margin: 20px;
+      padding: 20px;
+      background: #1e1e1e;
+      border-radius: 10px;
+      box-shadow: 0 0 15px #444;
+      text-align: center;
+      cursor: pointer;
+      font-size: 1.3em;
+    }
+    .container-btn:hover { background: #2a2a2a; }
+
+    button {
+      padding: 10px 20px;
+      background: red;
+      border: none;
+      color: white;
+      font-size: 1.2em;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #alert-box {
+      margin-top: 15px;
+      padding: 15px;
+      background: #333;
+      border-radius: 10px;
+      text-align: center;
+      font-weight: bold;
+    }
+    .alert-active {
+      background: #ff0000 !important;
+      color: yellow;
+      animation: blink 1s infinite;
+    }
+    @keyframes blink {
+      50% { background: yellow; color: red; }
+    }
+
+    /* Alert border corners blink */
+    .red-border {
+      border: 5px solid red;
+      animation: borderBlink 1s infinite;
+    }
+    @keyframes borderBlink {
+      50% { border-color: yellow; }
+    }
+
+    /* Pages */
+    .page { display: none; padding: 20px; }
+    .active { display: block; }
+
+    img {
+      max-width: 95%;
+      border-radius: 10px;
+      box-shadow: 0 0 20px #444;
+    }
+    a.back-btn {
+      display: inline-block;
+      margin-top: 20px;
+      color: red;
+      text-decoration: none;
+      font-size: 1.2em;
+    }
+    .cctv-grid-big {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+    }
+    .cctv-grid-big img { width: 100%; }
+
+    /* Notification list */
+    .notification-list {
+      list-style: none;
+      padding: 0;
+    }
+    .notification-list li {
+      background: #1e1e1e;
+      margin: 10px 0;
+      padding: 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 0 8px #444;
+    }
+    .notification-list li:hover { background: #2a2a2a; }
+
+    /* Toast popup */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #ff4444;
+      color: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px #000;
+      z-index: 1000;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.5s ease;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>⛏️ AI Rockfall Prediction & Alert System</h1>
+    <div class="notification-icon" onclick="showPage('notifications')">🔔<span id="notif-count">0</span></div>
+  </header>
+
+  <!-- HOME -->
+  <div id="home" class="page active">
+    <section class="top-panel">
+      <div class="widget"><h2>🌡️ Temperature</h2><p id="temp">Loading...</p></div>
+      <div class="widget"><h2>🌦️ Weather</h2><p id="weather">Loading...</p></div>
+      <div class="widget"><h2>📍 Mine Location</h2><p id="location">Fetching...</p></div>
+    </section>
+
+    <div class="container-btn" onclick="showPage('blueprint')">🗺️ View Mine Blueprint</div>
+    <div class="container-btn" onclick="showPage('drone')">🚁 View Drone Footage</div>
+    <div class="container-btn" onclick="showPage('cctv')">🎥 View CCTV Monitoring</div>
+
+    <section class="container-btn" style="cursor:default;">
+      <h2>🚨 Alert System</h2>
+      <button onclick="triggerAlert()">Trigger Rockfall Alert</button>
+      <div id="alert-box">⚠️ No Alerts</div>
+    </section>
+  </div>
+
+  <!-- Notifications -->
+  <div id="notifications" class="page">
+    <h1>🔔 Notifications</h1>
+    <ul class="notification-list" id="notif-list"></ul>
+    <a href="#" class="back-btn" onclick="showPage('home')">⬅ Back to Home</a>
+  </div>
+
+  <!-- Notification Detail -->
+  <div id="notif-detail" class="page">
+    <h1>📍 Notification Detail</h1>
+    <p id="notif-position"><strong>Position:</strong> --</p>
+    <h2>🔎 CCTV Footage</h2>
+    <img id="notif-cctv" src="" alt="CCTV Footage">
+    <h2>🗺️ Blueprint Area</h2>
+    <img src="https://www.micromine.kz/wp-content/uploads/2017/11/pitopt-1-Optimal-Pits-Mine-Area-web.png" alt="Blueprint Zone">
+    <br>
+    <a href="#" class="back-btn" onclick="showPage('notifications')">⬅ Back to Notifications</a>
+  </div>
+
+  <!-- Other pages -->
+  <div id="blueprint" class="page"><h1>🗺️ Mine Blueprint</h1>
+    <img src="https://www.micromine.kz/wp-content/uploads/2017/11/pitopt-1-Optimal-Pits-Mine-Area-web.png"><br>
+    <a href="#" class="back-btn" onclick="showPage('home')">⬅ Back to Home</a></div>
+
+  <div id="drone" class="page"><h1>🚁 Drone View</h1>
+    <img src="https://c7.alamy.com/comp/2JD2YRD/aerial-view-of-industrial-terraces-on-mineral-mine-opencast-mining-drone-view-from-above-2JD2YRD.jpg"><br>
+    <a href="#" class="back-btn" onclick="showPage('home')">⬅ Back to Home</a></div>
+
+  <div id="cctv" class="page"><h1>🎥 CCTV Monitoring</h1>
+    <div class="cctv-grid-big">
+      <img src="https://media.istockphoto.com/id/104783024/photo/loading-of-iron-ore-at-iron-site.jpg?s=612x612" alt="CCTV 1">
+      <img src="https://media.istockphoto.com/id/172252452/photo/ore-trucks-in-an-open-pit-mine.jpg?s=2048x2048" alt="CCTV 2">
+      <img src="https://www.researchgate.net/profile/Lingxi-Li-3/publication/372595153/figure/fig3/AS:11431281181540386@1692069789235/Part-of-scenarios-of-the-open-pit-mine-in-PMS.jpg" alt="CCTV 3">
+      <img src="https://www.researchgate.net/profile/Lingxi-Li-3/publication/372595153/figure/fig3/AS:11431281181540386@1692069789235/Part-of-scenarios-of-the-open-pit-mine-in-PMS.jpg" alt="CCTV 4">
+    </div>
+    <a href="#" class="back-btn" onclick="showPage('home')">⬅ Back to Home</a></div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Sounds -->
+  <audio id="alert-sound" loop>
+    <source src="https://www.soundjay.com/buttons/beep-07a.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="notif-sound">
+    <source src="https://www.soundjay.com/buttons/button-09.mp3" type="audio/mpeg">
+  </audio>
+
+  <script>
+    function showPage(pageId) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById(pageId).classList.add('active');
+    }
+
+    // Weather API
+    async function fetchWeather() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          let lat = pos.coords.latitude.toFixed(3);
+          let lon = pos.coords.longitude.toFixed(3);
+          document.getElementById("location").innerText = `Lat: ${lat}, Lon: ${lon}`;
+          try {
+            let res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+            let data = await res.json();
+            if (data.current_weather) {
+              document.getElementById("temp").innerText = data.current_weather.temperature + "°C";
+              document.getElementById("weather").innerText = data.current_weather.weathercode === 0 ? "Clear Sky" : "Cloudy";
+            }
+          } catch {
+            document.getElementById("weather").innerText = "Weather API failed";
+          }
+        });
+      }
+    }
+    fetchWeather();
+
+    // Alert system
+    function triggerAlert() {
+      let alertBox = document.getElementById("alert-box");
+      let sound = document.getElementById("alert-sound");
+      document.body.classList.add("red-border");
+      alertBox.innerText = "🚨 Rockfall Detected! Workers Alerted via SMS & Email!";
+      alertBox.classList.add("alert-active");
+      sound.play();
+      setTimeout(() => {
+        sound.pause(); sound.currentTime = 0;
+        alertBox.innerText = "⚠️ No Alerts";
+        alertBox.classList.remove("alert-active");
+        document.body.classList.remove("red-border");
+      }, 10000);
+    }
+
+    // Notifications
+    let notifCount = 0;
+    const directions = ["North", "South", "East", "West", "North-East", "North-West", "South-East", "South-West"];
+
+    function generateNotification() {
+      notifCount++;
+      document.getElementById("notif-count").innerText = notifCount;
+
+      let direction = directions[Math.floor(Math.random() * directions.length)];
+      let cctvId = Math.floor(Math.random() * 6) + 1;
+
+      let notifList = document.getElementById("notif-list");
+      let li = document.createElement("li");
+      li.innerText = `📍 ${direction} Zone | CCTV-${cctvId} observed rock movement`;
+      li.onclick = () => {
+        document.getElementById("notif-position").innerHTML = `<strong>Position:</strong> ${direction} Zone (CCTV-${cctvId})`;
+        document.getElementById("notif-cctv").src = document.querySelectorAll("#cctv img")[cctvId-1].src;
+        showPage('notif-detail');
+      };
+      notifList.prepend(li);
+
+      showToast(`📍 ${direction} Zone | CCTV-${cctvId} detected rock movement`);
+      document.getElementById("notif-sound").play();
+    }
+
+    function showToast(message) {
+      let toast = document.getElementById("toast");
+      toast.innerText = message;
+      toast.classList.add("show");
+      setTimeout(() => { toast.classList.remove("show"); }, 4000);
+    }
+
+    setInterval(generateNotification, 20000);
+  </script>
+</body>
+</html>
